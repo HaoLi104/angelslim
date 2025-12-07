@@ -2,9 +2,12 @@
 
 set -euo pipefail
 
-# 请根据实际路径导出以下环境变量，也可在命令行附加覆盖
-: "${BASE_MODEL_PATH:?请先导出 BASE_MODEL_PATH，例如 export BASE_MODEL_PATH=/path/to/base}" 
-: "${EAGLE_MODEL_PATH:?请先导出 EAGLE_MODEL_PATH，例如 export EAGLE_MODEL_PATH=/path/to/eagle}" 
+# 默认指向本机已下载的 Qwen3-8B 组合，可通过环境变量覆盖
+BASE_MODEL_PATH=${BASE_MODEL_PATH:-/data/ocean/specexit_workspace/models/base_qwen3-8b}
+EAGLE_MODEL_PATH=${EAGLE_MODEL_PATH:-/data/ocean/specexit_workspace/models/drafter_qwen3-8b}
+
+: "${BASE_MODEL_PATH:?请先导出 BASE_MODEL_PATH，例如 export BASE_MODEL_PATH=/path/to/base}"
+: "${EAGLE_MODEL_PATH:?请先导出 EAGLE_MODEL_PATH，例如 export EAGLE_MODEL_PATH=/path/to/eagle}"
 
 MODEL_ID=${MODEL_ID:-specexit-demo}
 BENCH_NAME=${BENCH_NAME:-gsm8k}
