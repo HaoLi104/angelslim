@@ -17,6 +17,7 @@ import json
 import os
 from dataclasses import dataclass
 from enum import Enum
+from pathlib import Path
 from typing import Any, Dict, Optional
 
 import numpy as np
@@ -353,10 +354,19 @@ class BenchmarkEngine:
 
     def _get_question_file_path(self) -> str:
         """Get question file path"""
-        current_file = os.path.abspath(__file__)
-        project_root = current_file.split("/AngelSlim/")[0] + "/AngelSlim"
-        return os.path.join(
-            project_root, "dataset", self.config.bench_name, "question.jsonl"
+        current_path = Path(__file__).resolve()
+        project_root = current_path
+        # 向上查找仓库根目录，兼容 AngelSlim/angelslim 命名
+        while project_root.name.lower() != "angelslim" and project_root.parent != project_root:
+            project_root = project_root.parent
+
+        if project_root.name.lower() != "angelslim":
+            raise RuntimeError(
+                "Unable to locate AngelSlim project root for dataset lookup"
+            )
+
+        return str(
+            project_root / "dataset" / self.config.bench_name / "question.jsonl"
         )
 
     def _reorg_answer_file(self, answer_file: str):
