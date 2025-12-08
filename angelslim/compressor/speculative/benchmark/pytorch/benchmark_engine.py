@@ -355,14 +355,16 @@ class BenchmarkEngine:
     def _get_question_file_path(self) -> str:
         """Get question file path"""
         current_path = Path(__file__).resolve()
-        project_root = current_path
-        # 向上查找仓库根目录，兼容 AngelSlim/angelslim 命名
-        while project_root.name.lower() != "angelslim" and project_root.parent != project_root:
-            project_root = project_root.parent
+        project_root = None
 
-        if project_root.name.lower() != "angelslim":
+        for ancestor in [current_path] + list(current_path.parents):
+            if (ancestor / "dataset").is_dir():
+                project_root = ancestor
+                break
+
+        if project_root is None:
             raise RuntimeError(
-                "Unable to locate AngelSlim project root for dataset lookup"
+                "Unable to locate AngelSlim project root (dataset directory not found)"
             )
 
         return str(
