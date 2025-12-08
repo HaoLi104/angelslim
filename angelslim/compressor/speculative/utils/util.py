@@ -136,10 +136,9 @@ def initialize_tree(input_ids, model, past_key_values, logits_processor):
 
     # Clone the output hidden states
     eagle_device = next(model.eagle_layer.parameters()).device
-    if outputs["hidden_states"][0].device != eagle_device:
-        outputs["hidden_states"] = [
-            x.to(eagle_device) for x in outputs["hidden_states"]
-        ]
+    outputs["hidden_states"] = [
+        x.to(eagle_device) for x in outputs["hidden_states"]
+    ]
     hidden_states = torch.cat(outputs["hidden_states"], dim=-1)
     draft_tokens, retrieve_indices, tree_mask, tree_position_ids, _ = (
         model.eagle_layer.topK_genrate(hidden_states, input_ids, logits_processor)
@@ -182,10 +181,9 @@ def tree_decoding(
     )
 
     eagle_device = next(model.eagle_layer.parameters()).device
-    if outputs["hidden_states"][0].device != eagle_device:
-        outputs["hidden_states"] = [
-            x.to(eagle_device) for x in outputs["hidden_states"]
-        ]
+    outputs["hidden_states"] = [
+        x.to(eagle_device) for x in outputs["hidden_states"]
+    ]
     hidden_state = torch.cat(outputs["hidden_states"], dim=-1)
 
     logits = tree_logits[0, retrieve_indices]
