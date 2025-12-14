@@ -234,7 +234,14 @@ def data_generation_work_flow(args):
     # Load input data
     logger.info(f"Loading data from {args.data_name_or_path}")
     try:
-        dataset = load_dataset(args.data_name_or_path, split="all")
+        if os.path.isfile(args.data_name_or_path):
+            # Local file (.json/.jsonl)
+            dataset = load_dataset(
+                "json", data_files=args.data_name_or_path, split="train"
+            )
+        else:
+            # HF repo or dataset script
+            dataset = load_dataset(args.data_name_or_path, split="all")
     except Exception as e:
         logger.error(f"Failed to load data: {e}")
         return
