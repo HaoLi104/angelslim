@@ -320,6 +320,37 @@ class Eagle3Model(nn.Module):
             del eagle_layer.d2t
             del eagle_layer.t2d
 
+        # Some drafter checkpoints (e.g., without SpecExit side heads) ship a
+        # smaller fc layer: out_features == hidden_size. When the experiment
+        # requests an early_stop_method, the instantiated layer expects extra
+        # logits, leading to a shape mismatch. Detect this and gracefully
+        # downgrade to no side head so the checkpoint still loads.
+        ckpt_fc = eagle_state_dict.get("fc.weight")
+        if (
+            ckpt_fc is not None
+            and eagle_layer.early_stop_method is not None
+            and eagle_layer.fc.out_features != ckpt_fc.shape[0]
+            and ckpt_fc.shape[0] == eagle_layer.hidden_size
+        ):
+            print(
+                "[警告] drafter 权重缺少 SpecExit side head，自动关闭 early_stop_method 以继续运行。"
+            )
+            new_fc = torch.nn.Linear(
+                eagle_layer.fc.in_features,
+                ckpt_fc.shape[0],
+                bias=False,
+                device=ckpt_fc.device,
+                dtype=ckpt_fc.dtype,
+            )
+            with torch.no_grad():
+                new_fc.weight.copy_(ckpt_fc)
+            eagle_layer.fc = new_fc
+            eagle_layer.early_stop_method = None
+            early_stop_method = None
+            eagle_state_dict = {
+                k: v for k, v in eagle_state_dict.items() if not k.startswith("fc.")
+            }
+
         eagle_layer.load_state_dict(eagle_state_dict, strict=False)
         eagle_layer.to(device=device, dtype=base_model.dtype)
         eagle_layer.init_tree()
