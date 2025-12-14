@@ -27,12 +27,17 @@ __all__ = [
 def convert_sharegpt_data(row, dataset_column="conversations"):
     converted_messages = []
 
-    role_mapping = {"human": "user", "gpt": "assistant"}
+    role_mapping = {
+        "human": "user",
+        "gpt": "assistant",
+        "assistant": "assistant",
+        "user": "user",
+        "system": "system",
+    }
     messages = row[dataset_column]
     for message in messages:
-        converted_messages.append(
-            {"role": role_mapping[message["from"]], "content": message["value"]}
-        )
+        role = role_mapping.get(message.get("from"), message.get("from", "user"))
+        converted_messages.append({"role": role, "content": message["value"]})
 
     return {"conversations": converted_messages, "id": row["id"]}
 
