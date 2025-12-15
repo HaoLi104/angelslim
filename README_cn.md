@@ -100,12 +100,24 @@
           <li><a href="">Hunyuan-VL</a></li>
           <li><a href="https://huggingface.co/collections/AngelSlim/qwen25vl-quant">Qwen3-VL</a></li>
           <li><a href="https://huggingface.co/collections/AngelSlim/qwen25vl-quant">Qwen2.5-VL</a></li>
+
+              ##### 本地数据 + vLLM + Hidden + 离线训练（Qwen3-8B 示例）
+
+              以下示例为在单机上，从公开 ShareGPT 数据出发，生成新采样、离线抽取 hidden，并启动离线训练 drafter（需自备含 SpecExit side head 的 drafter 配置）。根据硬件调整并行度与显存占用。
+
+              1) 准备目录与数据（示例存放至 `/data/ocean/specexit_workspace`）
+
+              ```bash
         </ul>
       </td>
       <td>
         <ul style="padding-left: 0; list-style-position: inside;">
           <li><a href="https://github.com/Tencent/AngelSlim/tree/main/configs/qwen3_vl">FP8-Static/Dynamic</a></li>
           <li><a href="https://github.com/Tencent/AngelSlim/tree/main/configs/qwen2_5_vl">INT8-Dynamic</a></li>
+
+              2) 启动 vLLM 服务（目标模型：Qwen3-8B），监听 6000 端口
+
+              ```bash
           <li><a href="https://github.com/Tencent/AngelSlim/tree/main/configs/qwen2_5_vl">INT4-GPTQ/AWQ/GPTAQ</a></li>
         </ul>
       </td>
@@ -114,6 +126,10 @@
           <li><a href="https://angelslim.readthedocs.io/zh-cn/latest/features/speculative_decoding/eagle.html">Eagle3建设中</a></li>
         </ul>
       </td>
+
+              3) 基于 vLLM 生成采样数据分片
+
+              ```bash
       <td>
         <ul style="padding-left: 0; list-style-position: inside;">
           <li>
@@ -124,6 +140,10 @@
           </li>
         </ul>
       </td>
+
+              4) 离线抽取 hidden states（用 3 张卡示例）
+
+              ```bash
     </tr>
     <tr>
       <td><strong>文生图/视频/3D(Diffusion)</strong></td>
@@ -141,6 +161,10 @@
       <td>
         <ul style="padding-left: 0; list-style-position: inside;">
           <li><a href="https://angelslim.readthedocs.io/zh-cn/latest/features/diffusion/quantization.html">FP8-Dynamic</a></li>
+
+              5) 离线训练 drafter（需提供带 SpecExit side head 的 drafter config）
+
+              ```bash
           <li><a href="https://angelslim.readthedocs.io/zh-cn/latest/features/diffusion/quantization.html">FP8-Weight-Only</a></li>
         </ul>
       </td>
@@ -158,6 +182,11 @@
             <strong>稀疏注意力</strong>
             <ul style="padding-left: 1.5rem">
               <li>建设中</li>
+
+              说明：
+              - `DRAFT_MODEL_CONFIG_PATH` 需对应 Qwen3-8B 的 EAGLE/SpecExit 草稿模型配置，并包含 side head（fc 输出维度需大于 hidden_size，以适配 early_stop_method）。
+              - 若显存紧张，可降低 `--nproc_per_node`，或调整 `CUDA_VISIBLE_DEVICES` 选择空闲 GPU。
+              - 确保训练前已关闭占用显存的 vLLM 进程，以免 OOM。
             </ul>
           </li>
         </ul>
