@@ -460,12 +460,22 @@ class Eagle3LlamaForCausalLM(Eagle3BaseDraftModel):
         super().__init__(config)
         self.midlayer = LlamaDecoderLayeremb(config)
 
+        # spec-exit / deepconf 早停相关
+        self.early_stop_method = getattr(config, "early_stop_method", None)
+        self.side_head_dim = (
+            self.early_stop_method.count("_") + 1 if self.early_stop_method else 0
+        )
+
+        target_hidden_size = getattr(config, "target_hidden_size", config.hidden_size)
         self.vocab_size = config.vocab_size
         self.draft_vocab_size = config.draft_vocab_size
         self.padding_idx = config.pad_token_id
         self.hidden_size = config.hidden_size
         self.norm = LlamaRMSNorm(config.hidden_size, eps=config.rms_norm_eps)
-        self.fc = nn.Linear(self.hidden_size * 3, self.hidden_size, bias=False)
+        # 当配置了 early_stop_method 时，fc 输出需要额外 side head 维度（如 3 维）
+        self.fc = nn.Linear(
+            target_hidden_size * 3, self.hidden_size + self.side_head_dim, bias=False
+        )
         self.embed_tokens = nn.Embedding(
             config.vocab_size, config.hidden_size, self.padding_idx
         )
@@ -492,6 +502,13 @@ class Eagle3LlamaForCausalLM(Eagle3BaseDraftModel):
         position_ids: torch.Tensor,
         use_cache: bool,
     ):
+        # 如果存在 side head 维度，先分离以保证后续堆叠维度正确
+        if (
+            self.side_head_dim > 0
+            and hidden_states.shape[-1] == self.hidden_size + self.side_head_dim
+        ):
+            hidden_states = hidden_states[..., : self.hidden_size]
+
         layer_outputs, cache_hidden = self.midlayer(
             inputs_embeds,
             hidden_states,
@@ -539,6 +556,12 @@ class Eagle3LlamaForCausalLM(Eagle3BaseDraftModel):
 
         if hidden_states.shape[-1] != self.hidden_size:
             hidden_states = self.fc(hidden_states)
+        # 分离 side head，保证后续注意力输入维度为 hidden_size
+        if (
+            self.side_head_dim > 0
+            and hidden_states.shape[-1] == self.hidden_size + self.side_head_dim
+        ):
+            hidden_states = hidden_states[..., : self.hidden_size]
 
         if past_key_values is not None:
             past_key_values_length = past_key_values[0][0].shape[2]
