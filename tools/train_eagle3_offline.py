@@ -386,6 +386,18 @@ def train():
         rank0_print("Starting training...")
         trainer.train()
     rank0_print("Training completed!")
+    
+    # Save final model if not using save_strategy
+    if training_args.save_strategy == "no":
+        rank0_print("Saving final model...")
+        trainer.save_model(args.output_dir)
+        # Also save config if it doesn't exist
+        config_path = Path(args.output_dir) / "config.json"
+        if not config_path.exists():
+            draft_model_config = DraftModelConfig.from_file(args.draft_model_config_path)
+            draft_model_config.save_pretrained(args.output_dir)
+            rank0_print(f"Saved config to {config_path}")
+        rank0_print(f"Final model saved to {args.output_dir}")
 
 
 if __name__ == "__main__":
