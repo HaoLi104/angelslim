@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import json
 import os
 import time
 from dataclasses import dataclass
@@ -303,6 +304,40 @@ class Eagle3Model(nn.Module):
         device = next(base_model.parameters()).device
         eagle_state_dict = ModelLoader.load_eagle_state_dict(eagle_model_path, device)
 
+        # Detect if checkpoint has side head by checking fc.weight shape
+        # If checkpoint has side head but early_stop_method is None, try to get it from config JSON
+        ckpt_fc = eagle_state_dict.get("fc.weight")
+        if ckpt_fc is not None and early_stop_method is None:
+            ckpt_fc_output_size = ckpt_fc.shape[0]
+            if ckpt_fc_output_size > config.hidden_size:
+                # Checkpoint has side head, try to get early_stop_method from config JSON file
+                try:
+                    with open(config_path, "r", encoding="utf-8") as f:
+                        config_json = json.load(f)
+                        if "early_stop_method" in config_json and config_json["early_stop_method"]:
+                            early_stop_method = config_json["early_stop_method"]
+                            print(
+                                f"[信息] 从 config.json 中读取 early_stop_method: {early_stop_method} "
+                                f"(checkpoint fc 维度: {ckpt_fc_output_size}, hidden_size: {config.hidden_size})"
+                            )
+                except (FileNotFoundError, json.JSONDecodeError, KeyError):
+                    pass
+                
+                # If still None, infer from fc output size
+                if early_stop_method is None:
+                    side_head_dim = ckpt_fc_output_size - config.hidden_size
+                    if side_head_dim == 3:
+                        early_stop_method = "confidence_progress_remain"
+                        print(
+                            f"[信息] 根据 checkpoint fc 维度推断 early_stop_method: {early_stop_method} "
+                            f"(side head 维度: {side_head_dim})"
+                        )
+                    else:
+                        print(
+                            f"[警告] checkpoint 包含 side head (维度 {side_head_dim})，但无法推断 early_stop_method，"
+                            "将使用 None。这可能导致模型结构不匹配。"
+                        )
+
         # TODO: Implement factory pattern for different drafter types
         eagle_layer = Llama3Eagle3Drafter(
             config,
@@ -325,7 +360,6 @@ class Eagle3Model(nn.Module):
         # requests an early_stop_method, the instantiated layer expects extra
         # logits, leading to a shape mismatch. Detect this and gracefully
         # downgrade to no side head so the checkpoint still loads.
-        ckpt_fc = eagle_state_dict.get("fc.weight")
         if (
             ckpt_fc is not None
             and eagle_layer.early_stop_method is not None
